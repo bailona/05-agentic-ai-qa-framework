@@ -1,0 +1,35 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# Reports and temporary files
+reports/*
+!reports/.gitkeep
+*.log
+*.tmp
+
+# ChromaDB
+chroma_db/
+data/chroma/
+
+# Database files
+*.db
+*.sqlite3
