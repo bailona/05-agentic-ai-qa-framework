@@ -1,7 +1,8 @@
 ﻿# Agentic AI QA Automation Framework
 
-**Project Status:** Active Development
-**Test Status:** 57 Tests Passing
+![Project Status](https://img.shields.io/badge/Status-Active%20Development-blue)
+![Tests](https://img.shields.io/badge/Tests-57%20Passing-success)
+![Python](https://img.shields.io/badge/Python-3.12-blue)
 
 ## Overview
 
@@ -9,7 +10,7 @@ The Agentic AI QA Automation Framework is a Python-based project that applies La
 
 The framework analyzes software requirements, identifies potential quality risks, and automatically generates structured test plans using specialized AI agents.
 
-The project demonstrates the integration of traditional Software Quality Assurance engineering practices with modern AI Engineering concepts.
+This project demonstrates the integration of traditional Software Quality Assurance engineering practices with modern AI Engineering concepts.
 
 ## Key Features
 
@@ -24,6 +25,27 @@ The project demonstrates the integration of traditional Software Quality Assuran
 - **Automated Testing:** Includes unit and integration tests using pytest.
 
 ## Architecture
+
+The framework separates requirements analysis, test planning, and knowledge retrieval into dedicated components.
+
+```mermaid
+flowchart TD
+    A["Software Requirement"] --> B["QA Orchestrator"]
+    B --> C["Requirements Analyzer Agent"]
+    C --> D["Knowledge Retrieval"]
+    D --> E[("ChromaDB Vector Database")]
+    E --> C
+    C --> F["Test Planner Agent"]
+    F --> G["Structured Test Plan"]
+
+    H["OpenAI API"] --> C
+    H --> F
+
+    I["LangGraph Workflow"] -.-> C
+    I -.-> F
+```
+
+### Project Structure
 
 ```text
 05-agentic-ai-qa-framework/
@@ -87,7 +109,6 @@ The framework follows a sequential AI-driven workflow:
 
 ```bash
 git clone https://github.com/bailona/05-agentic-ai-qa-framework.git
-
 cd 05-agentic-ai-qa-framework
 ```
 
