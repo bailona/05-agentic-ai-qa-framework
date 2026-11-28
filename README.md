@@ -28,26 +28,40 @@ This project demonstrates the integration of traditional Software Quality Assura
 
 ## Architecture
 
-The framework separates requirements analysis, test planning, and knowledge retrieval into dedicated components.
+The framework uses a modular architecture in which specialized AI agents collaborate to analyze software requirements and generate structured test plans.
+
+The architecture combines RAG-based knowledge retrieval, OpenAI Responses API, Pydantic validation, and LangGraph workflow orchestration.
 
 ```mermaid
 flowchart TD
     A["Software Requirement"] --> B["QA Orchestrator"]
+
     B --> C["Requirements Analyzer Agent"]
-    C --> D["Knowledge Retrieval"]
-    D --> E[("ChromaDB Vector Database")]
-    E --> C
-    C --> F["Test Planner Agent"]
-    F --> G["Structured Test Plan"]
 
-    H["OpenAI Responses API"] --> C
-    H --> F
+    C <--> D["Knowledge Retrieval"]
+    D <--> E[("ChromaDB Vector Database")]
 
-    I["Pydantic Structured Outputs"] -.-> C
-    I -.-> F
+    C --> F["Structured Requirements Analysis"]
+    F --> G["Test Planner Agent"]
+    G --> H["Structured Test Plan"]
 
-    J["LangGraph Workflow"] -.-> C
+    subgraph AI["AI Engineering Components"]
+        I["OpenAI Responses API"]
+        J["Pydantic Structured Outputs"]
+        K["LangGraph Workflow"]
+    end
+
+    I -.-> C
+    I -.-> G
+
     J -.-> F
+    J -.-> H
+
+    K -.-> B
+
+    style A fill:#1d4ed8,color:#fff,stroke:#60a5fa
+    style H fill:#15803d,color:#fff,stroke:#4ade80
+    style E fill:#334155,color:#fff,stroke:#94a3b8
 ```
 
 ### Project Structure
@@ -188,16 +202,11 @@ python -m pytest -v
 
 ### Current Test Results
 
-<details>
-<summary>Latest test execution results</summary>
-
 | Test Category | Result |
 |---|---:|
 | Unit Tests | 52 passed |
 | Integration Tests | 4 passed |
 | **Total** | **56 passed** |
-
-</details>
 
 All 56 automated tests passed in the latest full test execution.
 
