@@ -35,10 +35,9 @@ The architecture combines RAG-based knowledge retrieval, OpenAI Responses API, P
 ```mermaid
 flowchart TD
     A["Software Requirement"] --> B["QA Orchestrator"]
-
     B --> C["Requirements Analyzer Agent"]
 
-    C <--> D["Knowledge Retrieval"]
+    C --> D["Knowledge Retrieval"]
     D <--> E[("ChromaDB Vector Database")]
 
     C --> F["Structured Requirements Analysis"]
@@ -53,10 +52,8 @@ flowchart TD
 
     I -.-> C
     I -.-> G
-
     J -.-> F
     J -.-> H
-
     K -.-> B
 
     style A fill:#1d4ed8,color:#fff,stroke:#60a5fa
