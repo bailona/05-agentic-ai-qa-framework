@@ -1,13 +1,35 @@
 
 import json
+from typing import Literal
+
 from openai import OpenAI
+from pydantic import BaseModel
+
+
+class TestScenarioOutput(BaseModel):
+    """Structured output for an individual test scenario."""
+
+    id: str
+    title: str
+    type: Literal["positive", "negative", "edge_case"]
+    priority: Literal["high", "medium", "low"]
+    description: str
+    expected_result: str
+
+
+class TestPlanOutput(BaseModel):
+    """Structured output for a complete software test plan."""
+
+    test_plan_summary: str
+    total_scenarios: int
+    test_scenarios: list[TestScenarioOutput]
 
 
 class TestPlanner:
     """AI-powered test scenario planner."""
 
-    def __init__(self, model="gpt-5.6"):
-        self.client = OpenAI()
+    def __init__(self, model="gpt-5.6", client=None):
+        self.client = client if client is not None else OpenAI()
         self.model = model
 
     def generate_test_plan(self, requirements_analysis: dict) -> dict:
@@ -23,42 +45,23 @@ class TestPlanner:
         Requirements analysis:
         {json.dumps(requirements_analysis, indent=2)}
 
-        Return only a valid JSON object with this structure:
-
-        {{
-            "test_plan_summary": "Brief test plan summary",
-            "total_scenarios": 0,
-            "test_scenarios": [
-                {{
-                    "id": "TC001",
-                    "title": "Test scenario title",
-                    "type": "positive, negative, or edge_case",
-                    "priority": "high, medium, or low",
-                    "description": "What should be tested",
-                    "expected_result": "Expected behavior"
-                }}
-            ]
-        }}
-
         Include positive, negative, and edge-case scenarios.
         Assign realistic priorities.
         Do not invent functionality that is not supported by the requirements.
-        Return only valid JSON.
+        Ensure total_scenarios matches the number of test scenarios.
         """
 
-        response = self.client.responses.create(
+        response = self.client.responses.parse(
             model=self.model,
-            input=prompt
+            input=prompt,
+            text_format=TestPlanOutput
         )
 
-        try:
-            result = json.loads(response.output_text)
-        except json.JSONDecodeError as error:
+        result = response.output_parsed
+
+        if result is None:
             raise ValueError(
-                "The AI returned an invalid JSON response."
-            ) from error
+                "The AI did not return a structured test plan."
+            )
 
-        if not isinstance(result, dict):
-            raise ValueError("The AI response must be a JSON object.")
-
-        return result
+        return result.model_dump()

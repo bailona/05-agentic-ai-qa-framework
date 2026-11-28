@@ -1,26 +1,30 @@
 
-import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
-from src.agents.requirements_analyzer import RequirementsAnalyzer
+from src.agents.requirements_analyzer import (
+    RequirementsAnalyzer,
+    RequirementsAnalysisOutput
+)
 
 
 @pytest.fixture
 def mock_client():
     client = MagicMock()
-    client.responses.create.return_value = SimpleNamespace(
-        output_text=json.dumps({
-            "summary": "User login requirement",
-            "ambiguities": [],
-            "missing_information": [],
-            "quality_risks": [],
-            "acceptance_criteria": [],
-            "suggested_test_scenarios": []
-        })
+
+    client.responses.parse.return_value = SimpleNamespace(
+        output_parsed=RequirementsAnalysisOutput(
+            summary="User login requirement",
+            ambiguities=[],
+            missing_information=[],
+            quality_risks=[],
+            acceptance_criteria=[],
+            suggested_test_scenarios=[]
+        )
     )
+
     return client
 
 
@@ -55,42 +59,38 @@ def test_analyze_rejects_whitespace_requirement(analyzer):
         analyzer.analyze("   ")
 
 
-def test_analyze_returns_valid_json(analyzer, mock_client):
+def test_analyze_returns_structured_result(analyzer, mock_client):
     result = analyzer.analyze(
         "Users must be able to log in."
     )
 
     assert isinstance(result, dict)
     assert result["summary"] == "User login requirement"
+    assert "ambiguities" in result
+    assert "missing_information" in result
+    assert "quality_risks" in result
+    assert "acceptance_criteria" in result
+    assert "suggested_test_scenarios" in result
 
-    mock_client.responses.create.assert_called_once()
+    mock_client.responses.parse.assert_called_once()
 
-    call_arguments = mock_client.responses.create.call_args.kwargs
+    call_arguments = mock_client.responses.parse.call_args.kwargs
 
     assert call_arguments["model"] == "gpt-5.6"
     assert "Users must be able to log in." in call_arguments["input"]
+    assert call_arguments["text_format"] is RequirementsAnalysisOutput
 
 
-def test_analyze_rejects_invalid_json(mock_client):
-    mock_client.responses.create.return_value.output_text = "Invalid JSON"
-
-    analyzer = RequirementsAnalyzer(client=mock_client)
-
-    with pytest.raises(
-        ValueError,
-        match="invalid JSON response"
-    ):
-        analyzer.analyze("Users must be able to log in.")
-
-
-def test_analyze_rejects_non_object_json(mock_client):
-    mock_client.responses.create.return_value.output_text = '["invalid"]'
+def test_analyze_rejects_missing_structured_output(mock_client):
+    mock_client.responses.parse.return_value = SimpleNamespace(
+        output_parsed=None
+    )
 
     analyzer = RequirementsAnalyzer(client=mock_client)
 
     with pytest.raises(
         ValueError,
-        match="must be a JSON object"
+        match="did not return a structured requirements analysis"
     ):
         analyzer.analyze("Users must be able to log in.")
 
@@ -117,7 +117,7 @@ def test_analyze_uses_retrieved_knowledge_base_context(mock_client):
         n_results=3
     )
 
-    prompt = mock_client.responses.create.call_args.kwargs["input"]
+    prompt = mock_client.responses.parse.call_args.kwargs["input"]
 
     assert "login must validate email format" in prompt
     assert "invalid passwords must be rejected" in prompt
@@ -132,7 +132,7 @@ def test_analyze_works_without_knowledge_base(mock_client):
 
     assert isinstance(result, dict)
 
-    prompt = mock_client.responses.create.call_args.kwargs["input"]
+    prompt = mock_client.responses.parse.call_args.kwargs["input"]
 
     assert "No previous knowledge available." in prompt
 
@@ -155,6 +155,6 @@ def test_analyze_handles_empty_knowledge_base_results(mock_client):
 
     assert isinstance(result, dict)
 
-    prompt = mock_client.responses.create.call_args.kwargs["input"]
+    prompt = mock_client.responses.parse.call_args.kwargs["input"]
 
     assert "No previous knowledge available." in prompt

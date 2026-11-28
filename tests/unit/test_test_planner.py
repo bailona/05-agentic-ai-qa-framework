@@ -1,15 +1,51 @@
 
-import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
-from src.agents.planner_agent import TestPlanner as Planner
+from src.agents.planner_agent import (
+    TestPlanner as Planner,
+    TestPlanOutput as PlanOutput,
+    TestScenarioOutput as ScenarioOutput
+)
 
 
-def test_generate_test_plan_rejects_empty_analysis():
-    planner = Planner.__new__(Planner)
+@pytest.fixture
+def expected_result():
+    return PlanOutput(
+        test_plan_summary="Login functionality test plan",
+        total_scenarios=1,
+        test_scenarios=[
+            ScenarioOutput(
+                id="TC001",
+                title="Successful login",
+                type="positive",
+                priority="high",
+                description="Test login with valid credentials",
+                expected_result="User successfully logs in"
+            )
+        ]
+    )
 
+
+@pytest.fixture
+def mock_client(expected_result):
+    client = MagicMock()
+
+    client.responses.parse.return_value = SimpleNamespace(
+        output_parsed=expected_result
+    )
+
+    return client
+
+
+@pytest.fixture
+def planner(mock_client):
+    return Planner(client=mock_client)
+
+
+def test_generate_test_plan_rejects_empty_analysis(planner):
     with pytest.raises(
         ValueError,
         match="Requirements analysis cannot be empty"
@@ -17,9 +53,7 @@ def test_generate_test_plan_rejects_empty_analysis():
         planner.generate_test_plan({})
 
 
-def test_generate_test_plan_rejects_invalid_input():
-    planner = Planner.__new__(Planner)
-
+def test_generate_test_plan_rejects_invalid_input(planner):
     with pytest.raises(
         ValueError,
         match="Requirements analysis cannot be empty"
@@ -27,31 +61,10 @@ def test_generate_test_plan_rejects_invalid_input():
         planner.generate_test_plan("Invalid input")
 
 
-def test_generate_test_plan_returns_valid_json():
-    planner = Planner.__new__(Planner)
-    planner.client = MagicMock()
-    planner.model = "gpt-5.6"
-
-    expected_result = {
-        "test_plan_summary": "Login functionality test plan",
-        "total_scenarios": 3,
-        "test_scenarios": [
-            {
-                "id": "TC001",
-                "title": "Successful login",
-                "type": "positive",
-                "priority": "high",
-                "description": "Test login with valid credentials",
-                "expected_result": "User successfully logs in"
-            }
-        ]
-    }
-
-    mock_response = MagicMock()
-    mock_response.output_text = json.dumps(expected_result)
-
-    planner.client.responses.create.return_value = mock_response
-
+def test_generate_test_plan_returns_structured_result(
+    planner,
+    mock_client
+):
     requirements_analysis = {
         "summary": "Users must be able to log in.",
         "suggested_test_scenarios": ["Valid login"]
@@ -59,39 +72,43 @@ def test_generate_test_plan_returns_valid_json():
 
     result = planner.generate_test_plan(requirements_analysis)
 
-    assert result == expected_result
-    planner.client.responses.create.assert_called_once()
+    assert isinstance(result, dict)
+    assert result["test_plan_summary"] == "Login functionality test plan"
+    assert result["total_scenarios"] == 1
+    assert len(result["test_scenarios"]) == 1
+
+    scenario = result["test_scenarios"][0]
+
+    assert scenario["id"] == "TC001"
+    assert scenario["type"] == "positive"
+    assert scenario["priority"] == "high"
+
+    mock_client.responses.parse.assert_called_once()
+
+    call_arguments = mock_client.responses.parse.call_args.kwargs
+
+    assert call_arguments["model"] == "gpt-5.6"
+    assert call_arguments["text_format"] is PlanOutput
+    assert "Users must be able to log in." in call_arguments["input"]
 
 
-def test_generate_test_plan_rejects_invalid_json():
-    planner = Planner.__new__(Planner)
-    planner.client = MagicMock()
-    planner.model = "gpt-5.6"
+def test_generate_test_plan_rejects_missing_structured_output(
+    mock_client
+):
+    mock_client.responses.parse.return_value = SimpleNamespace(
+        output_parsed=None
+    )
 
-    mock_response = MagicMock()
-    mock_response.output_text = "Invalid JSON response"
-
-    planner.client.responses.create.return_value = mock_response
+    planner = Planner(client=mock_client)
 
     with pytest.raises(
         ValueError,
-        match="invalid JSON response"
+        match="did not return a structured test plan"
     ):
         planner.generate_test_plan({"summary": "Login"})
 
 
-def test_generate_test_plan_rejects_non_object_json():
-    planner = Planner.__new__(Planner)
-    planner.client = MagicMock()
-    planner.model = "gpt-5.6"
+def test_generate_test_plan_uses_injected_client(mock_client):
+    planner = Planner(client=mock_client)
 
-    mock_response = MagicMock()
-    mock_response.output_text = json.dumps(["TC001", "TC002"])
-
-    planner.client.responses.create.return_value = mock_response
-
-    with pytest.raises(
-        ValueError,
-        match="must be a JSON object"
-    ):
-        planner.generate_test_plan({"summary": "Login"})
+    assert planner.client is mock_client

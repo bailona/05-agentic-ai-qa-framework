@@ -1,6 +1,13 @@
-import json
+
 from unittest.mock import MagicMock, patch
 
+from src.agents.requirements_analyzer import (
+    RequirementsAnalysisOutput as AnalysisOutput
+)
+from src.agents.planner_agent import (
+    TestPlanOutput as PlanOutput,
+    TestScenarioOutput as ScenarioOutput
+)
 from src.core.qa_orchestrator import QAOrchestrator
 from src.retrieval.knowledge_base import KnowledgeBase
 
@@ -64,16 +71,27 @@ def create_mock_openai_clients(
     analysis=EXPECTED_ANALYSIS,
     test_plan=EXPECTED_TEST_PLAN
 ):
-    """Create mocked OpenAI clients for integration tests."""
+    """Create mocked OpenAI clients using structured outputs."""
 
     analyzer_client = MagicMock()
-    analyzer_client.responses.create.return_value.output_text = (
-        json.dumps(analysis)
+
+    analyzer_client.responses.parse.return_value.output_parsed = (
+        AnalysisOutput(**analysis)
+        if analysis is not None
+        else None
     )
 
     planner_client = MagicMock()
-    planner_client.responses.create.return_value.output_text = (
-        json.dumps(test_plan)
+
+    planner_client.responses.parse.return_value.output_parsed = (
+        PlanOutput(
+            test_plan_summary=test_plan["test_plan_summary"],
+            total_scenarios=test_plan["total_scenarios"],
+            test_scenarios=[
+                ScenarioOutput(**scenario)
+                for scenario in test_plan["test_scenarios"]
+            ]
+        )
     )
 
     return analyzer_client, planner_client
@@ -138,10 +156,10 @@ def test_qa_orchestrator_executes_complete_rag_workflow(tmp_path):
         REQUIREMENT
     )
 
-    analyzer_client.responses.create.assert_called_once()
+    analyzer_client.responses.parse.assert_called_once()
 
     analyzer_prompt = (
-        analyzer_client.responses.create.call_args.kwargs["input"]
+        analyzer_client.responses.parse.call_args.kwargs["input"]
     )
 
     assert (
@@ -150,10 +168,10 @@ def test_qa_orchestrator_executes_complete_rag_workflow(tmp_path):
     )
     assert "Shopping cart testing" in analyzer_prompt
 
-    planner_client.responses.create.assert_called_once()
+    planner_client.responses.parse.assert_called_once()
 
     planner_prompt = (
-        planner_client.responses.create.call_args.kwargs["input"]
+        planner_client.responses.parse.call_args.kwargs["input"]
     )
 
     assert "User login functionality" in planner_prompt
@@ -182,15 +200,15 @@ def test_qa_orchestrator_works_without_knowledge_base():
         "test_plan": EXPECTED_TEST_PLAN
     }
 
-    analyzer_client.responses.create.assert_called_once()
+    analyzer_client.responses.parse.assert_called_once()
 
     analyzer_prompt = (
-        analyzer_client.responses.create.call_args.kwargs["input"]
+        analyzer_client.responses.parse.call_args.kwargs["input"]
     )
 
     assert "No previous knowledge available." in analyzer_prompt
 
-    planner_client.responses.create.assert_called_once()
+    planner_client.responses.parse.assert_called_once()
 
 
 def test_qa_orchestrator_works_when_rag_finds_no_documents():
@@ -228,19 +246,18 @@ def test_qa_orchestrator_works_when_rag_finds_no_documents():
     )
 
     analyzer_prompt = (
-        analyzer_client.responses.create.call_args.kwargs["input"]
+        analyzer_client.responses.parse.call_args.kwargs["input"]
     )
 
     assert "No previous knowledge available." in analyzer_prompt
 
-    planner_client.responses.create.assert_called_once()
+    planner_client.responses.parse.assert_called_once()
 
 
 def test_qa_orchestrator_rejects_invalid_ai_analysis():
-    # Arrange: simulate an AI response containing a JSON array
-    # instead of the expected JSON object.
+    # Arrange: simulate a missing structured AI response.
     analyzer_client, planner_client = create_mock_openai_clients(
-        analysis=[]
+        analysis=None
     )
 
     # Act and Assert: invalid analysis must stop the workflow.
@@ -258,10 +275,11 @@ def test_qa_orchestrator_rejects_invalid_ai_analysis():
             assert False, "Expected ValueError was not raised."
         except ValueError as error:
             assert str(error) == (
-                "The AI response must be a JSON object."
+                "The AI did not return a structured "
+                "requirements analysis."
             )
 
-    analyzer_client.responses.create.assert_called_once()
+    analyzer_client.responses.parse.assert_called_once()
 
     # The planner must not execute after an invalid analysis.
-    planner_client.responses.create.assert_not_called()
+    planner_client.responses.parse.assert_not_called()

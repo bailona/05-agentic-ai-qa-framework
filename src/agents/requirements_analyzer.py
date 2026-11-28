@@ -1,14 +1,25 @@
 
-import json
 import os
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from pydantic import BaseModel
 
 from src.retrieval.knowledge_base import KnowledgeBase
 
 
 load_dotenv()
+
+
+class RequirementsAnalysisOutput(BaseModel):
+    """Structured output for software requirements analysis."""
+
+    summary: str
+    ambiguities: list[str]
+    missing_information: list[str]
+    quality_risks: list[str]
+    acceptance_criteria: list[str]
+    suggested_test_scenarios: list[str]
 
 
 class RequirementsAnalyzer:
@@ -57,36 +68,22 @@ class RequirementsAnalyzer:
         Requirement:
         {requirement}
 
-        Return a valid JSON object with these fields:
-        {{
-            "summary": "Brief requirement summary",
-            "ambiguities": [],
-            "missing_information": [],
-            "quality_risks": [],
-            "acceptance_criteria": [],
-            "suggested_test_scenarios": []
-        }}
-
         Identify positive, negative, and edge-case scenarios.
         Use the retrieved context as supporting information, not as
         unquestionable truth. Do not invent requirements.
-
-        Return only valid JSON.
         """
 
-        response = self.client.responses.create(
+        response = self.client.responses.parse(
             model=self.model,
-            input=prompt
+            input=prompt,
+            text_format=RequirementsAnalysisOutput
         )
 
-        try:
-            result = json.loads(response.output_text)
-        except json.JSONDecodeError as error:
+        result = response.output_parsed
+
+        if result is None:
             raise ValueError(
-                "The AI returned an invalid JSON response."
-            ) from error
+                "The AI did not return a structured requirements analysis."
+            )
 
-        if not isinstance(result, dict):
-            raise ValueError("The AI response must be a JSON object.")
-
-        return result
+        return result.model_dump()

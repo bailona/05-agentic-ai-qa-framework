@@ -1,7 +1,8 @@
-﻿# Agentic AI QA Automation Framework
+﻿
+# Agentic AI QA Automation Framework
 
 ![Project Status](https://img.shields.io/badge/Status-Active%20Development-blue)
-![Tests](https://img.shields.io/badge/Tests-57%20Passing-success)
+![Tests](https://img.shields.io/badge/Tests-56%20Passing-success)
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
 
 ## Overview
@@ -17,6 +18,7 @@ This project demonstrates the integration of traditional Software Quality Assura
 - **AI-Powered Requirements Analysis:** Analyzes software requirements and identifies ambiguities, missing information, and potential quality risks.
 - **Automated Test Planning:** Generates structured test scenarios, including positive, negative, and edge cases.
 - **Agent-Based Architecture:** Separates requirements analysis and test planning into specialized AI agents.
+- **Structured Outputs:** Uses the OpenAI Responses API with Pydantic models to produce validated, schema-based AI responses.
 - **RAG Integration:** Uses contextual information retrieved from a vector database to improve AI-generated analysis.
 - **Vector Database:** Stores and retrieves relevant knowledge using ChromaDB.
 - **Embedding Generation:** Uses OpenAI embedding models to generate vector representations of text.
@@ -38,11 +40,14 @@ flowchart TD
     C --> F["Test Planner Agent"]
     F --> G["Structured Test Plan"]
 
-    H["OpenAI API"] --> C
+    H["OpenAI Responses API"] --> C
     H --> F
 
-    I["LangGraph Workflow"] -.-> C
+    I["Pydantic Structured Outputs"] -.-> C
     I -.-> F
+
+    J["LangGraph Workflow"] -.-> C
+    J -.-> F
 ```
 
 ### Project Structure
@@ -86,7 +91,8 @@ flowchart TD
 | Technology | Purpose |
 |---|---|
 | Python 3.12 | Core development language |
-| OpenAI API | LLM and embedding integration |
+| OpenAI Responses API | LLM integration and structured outputs |
+| Pydantic | Data validation and structured response schemas |
 | LangGraph | Agent workflow orchestration |
 | ChromaDB | Vector database |
 | RAG | Context retrieval and augmentation |
@@ -100,8 +106,10 @@ The framework follows a sequential AI-driven workflow:
 1. **Requirement Input:** Receives a software requirement.
 2. **Knowledge Retrieval:** Searches the vector database for relevant contextual information when a knowledge base is configured.
 3. **Requirements Analysis:** The Requirements Analyzer evaluates the requirement and identifies ambiguities, missing information, quality risks, acceptance criteria, and suggested test scenarios.
-4. **Test Planning:** The Test Planner transforms the analysis into a structured test plan.
-5. **Output:** Returns the requirements analysis and generated test plan.
+4. **Structured Analysis Output:** Uses Pydantic schemas and the OpenAI Responses API to produce structured and validated analysis results.
+5. **Test Planning:** The Test Planner transforms the analysis into a structured test plan containing positive, negative, and edge-case scenarios.
+6. **Structured Test Plan:** Returns validated test scenarios with priorities, descriptions, and expected results.
+7. **Output:** The orchestrator returns the requirements analysis and generated test plan.
 
 ## Installation
 
@@ -162,7 +170,7 @@ result = orchestrator.process_requirement(
 )
 
 print("Requirements Analysis:")
-print(result["analysis"])
+print(result["requirements_analysis"])
 
 print("\nGenerated Test Plan:")
 print(result["test_plan"])
@@ -180,13 +188,20 @@ python -m pytest -v
 
 ### Current Test Results
 
+<details>
+<summary>Latest test execution results</summary>
+
 | Test Category | Result |
 |---|---:|
-| Unit Tests | 53 passed |
+| Unit Tests | 52 passed |
 | Integration Tests | 4 passed |
-| **Total** | **57 passed** |
+| **Total** | **56 passed** |
 
-Integration tests use mocks for external AI services where appropriate, avoiding unnecessary API calls and costs.
+</details>
+
+All 56 automated tests passed in the latest full test execution.
+
+Integration tests use mocks for external AI services where appropriate, avoiding unnecessary API calls and costs. The RAG integration tests also validate the ChromaDB workflow.
 
 ## Security and Best Practices
 
@@ -194,6 +209,7 @@ Integration tests use mocks for external AI services where appropriate, avoiding
 - `.env` is excluded through `.gitignore`.
 - Virtual environments and local database files are excluded from version control.
 - Dependencies are pinned to specific versions.
+- Pydantic schemas validate structured AI responses.
 - Automated tests use dependency injection and mocks to isolate external services.
 
 ## Roadmap
